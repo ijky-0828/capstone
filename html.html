@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Data and Shock Value</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #007bff;
+        }
+        #inputContainer, #eventDataSection {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            outline: none;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        #eventDataContainer p {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f1f9ff;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>차량 데이터 조회</h1>
+        <div id="inputContainer">
+            <label for="carNumber">차 번호를 입력하세요:</label>
+            <input type="text" id="carNumber" name="carNumber" placeholder="예: 111가 1234">
+            <button onclick="checkCarNumber()">조회</button>
+        </div>
+        
+        <div id="eventDataSection" class="hidden">
+            <h2>차량 충격 정보</h2>
+            <div id="eventDataContainer">
+                <p>데이터를 조회하려면 버튼을 누르세요</p>
+            </div>
+            <button onclick="loadData()">충격값 조회</button>
+        </div>
+    </div>
+    
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+      
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyAwlDDH6XWEtS7sY152fhxpUQXwOha_B8M",
+        authDomain: "logmanage-a6ce8.firebaseapp.com",
+        databaseURL: "https://logmanage-a6ce8-default-rtdb.firebaseio.com",
+        projectId: "logmanage-a6ce8",
+        storageBucket: "logmanage-a6ce8.appspot.com",
+        messagingSenderId: "368258092934",
+        appId: "1:368258092934:web:0c7b9ba09c2b66ab06e607"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const database = getDatabase(app);
+
+      let currentCarNumber = '';
+
+      // Function to load data from Firebase
+      async function loadData() {
+          if (!currentCarNumber) {
+              alert('차 번호를 입력하세요.');
+              return;
+          }
+
+          const eventRef = ref(database, `${currentCarNumber}/event_data`);
+          try {
+              const snapshot = await get(eventRef);
+              const data = snapshot.val();
+              console.log('Firebase data:', data); // Log the full data object
+              if (data) {
+                  document.getElementById('eventDataContainer').innerHTML = ''; // Clear previous data
+                  for (const key in data) {
+                      if (data.hasOwnProperty(key)) {
+                          const eventData = data[key];
+                          console.log('Event data:', eventData); // Log each event data
+                          const text = `Latitude: ${eventData.latitude} // Longitude: ${eventData.longitude} // Shock Level: ${eventData.shockLevel} // Timestamp: ${new Date(eventData.timestamp).toLocaleString()}`;
+                          addDataToContainer('eventDataContainer', text);
+                      }
+                  }
+              } else {
+                  addDataToContainer('eventDataContainer', 'No data available');
+              }
+          } catch (error) {
+              console.error("Error loading data: ", error);
+              addDataToContainer('eventDataContainer', 'Error loading data');
+          }
+      }
+
+      // Function to add data to the container
+      function addDataToContainer(containerId, text) {
+          const container = document.getElementById(containerId);
+          const newData = document.createElement('p');
+          newData.innerText = text;
+          container.appendChild(newData);
+      }
+
+      // Function to check car number and show the event data section
+      async function checkCarNumber() {
+          const carNumber = document.getElementById('carNumber').value;
+
+          // Reference to the root of the database
+          const dbRef = ref(database);
+
+          try {
+              // Check if the car number exists in the database
+              const snapshot = await get(child(dbRef, carNumber));
+              if (snapshot.exists()) {
+                  currentCarNumber = carNumber;
+                  document.getElementById('inputContainer').classList.add('hidden');
+                  document.getElementById('eventDataSection').classList.remove('hidden');
+                  document.querySelector('#eventDataSection h2').innerText = `차량 충격 정보 (${carNumber})`;
+              } else {
+                  alert('잘못된 차 번호입니다.');
+              }
+          } catch (error) {
+              console.error("Error checking car number: ", error);
+              alert('차 번호 확인 중 오류가 발생했습니다.');
+          }
+      }
+
+      // Attach the function to the window object
+      window.loadData = loadData;
+      window.checkCarNumber = checkCarNumber;
+    </script>
+</body>
+</html>
